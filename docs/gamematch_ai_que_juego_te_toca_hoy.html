@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GameMatch AI - ¿Qué juego te toca hoy?</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        orbitron: ['Orbitron', 'sans-serif'],
+                        rajdhani: ['Rajdhani', 'sans-serif'],
+                    },
+                    colors: {
+                        cyber: {
+                            bg: '#0a0d14',
+                            card: '#121824',
+                            border: '#1f293d',
+                            accent: '#00f0ff',
+                            purple: '#a855f7',
+                            pink: '#ec4899',
+                            green: '#10b981'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #06090e;
+            color: #f3f4f6;
+            font-family: 'Rajdhani', sans-serif;
+            background-image: 
+                radial-gradient(circle at 15% 15%, rgba(168, 85, 247, 0.08) 0%, transparent 40%),
+                radial-gradient(circle at 85% 85%, rgba(0, 240, 255, 0.08) 0%, transparent 40%);
+            background-attachment: fixed;
+        }
+
+        .neon-border-cyan {
+            box-shadow: 0 0 15px rgba(0, 240, 255, 0.3);
+            border-color: rgba(0, 240, 255, 0.6);
+        }
+
+        .neon-border-purple {
+            box-shadow: 0 0 15px rgba(168, 85, 247, 0.3);
+            border-color: rgba(168, 85, 247, 0.6);
+        }
+
+        .glass-panel {
+            background: rgba(18, 24, 36, 0.75);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: rgba(10, 13, 20, 0.5);
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(168, 85, 247, 0.4);
+            border-radius: 4px;
+        }
+
+        .drag-over {
+            border-style: dashed !important;
+            border-color: #00f0ff !important;
+            background: rgba(0, 240, 255, 0.1) !important;
+        }
+
+        @keyframes pulseGlow {
+            0%, 100% { opacity: 0.4; }
+            50% { opacity: 0.8; }
+        }
+        .animate-pulse-glow {
+            animation: pulseGlow 3s infinite ease-in-out;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between custom-scrollbar">
+
+    <!-- NAVBAR -->
+    <header class="sticky top-0 z-40 glass-panel border-b border-cyber-border/50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+            <!-- Logo Brand -->
+            <div class="flex items-center gap-3">
+                <div class="w-12 h-12 rounded-xl bg-gradient-to-tr from-purple-600 to-cyan-400 p-0.5 flex items-center justify-center shadow-lg shadow-cyan-500/20">
+                    <div class="w-full h-full bg-cyber-bg rounded-[10px] flex items-center justify-center">
+                        <i class="fa-solid fa-gamepad text-2xl text-cyan-400"></i>
+                    </div>
+                </div>
+                <div>
+                    <span class="font-orbitron font-extrabold text-xl text-white tracking-wider flex items-center gap-2">
+                        GAMEMATCH <span class="text-xs bg-cyan-500/20 text-cyan-400 px-2 py-0.5 rounded border border-cyan-500/30">30 GAMES</span>
+                    </span>
+                    <p class="text-xs text-gray-400 font-medium">¿QUÉ JUEGO TE TOCA HOY?</p>
+                </div>
+            </div>
+
+            <!-- Nav Tabs -->
+            <nav class="hidden md:flex items-center gap-2 glass-panel p-1.5 rounded-2xl border border-cyber-border">
+                <button onclick="switchTab('quiz')" id="tab-btn-quiz" class="px-5 py-2.5 rounded-xl font-orbitron text-xs font-bold transition-all duration-300 flex items-center gap-2 bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/25">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i> Quiz Match
+                </button>
+                <button onclick="switchTab('catalog')" id="tab-btn-catalog" class="px-5 py-2.5 rounded-xl font-orbitron text-xs font-bold text-gray-400 hover:text-white transition-all duration-300 flex items-center gap-2 hover:bg-white/5">
+                    <i class="fa-solid fa-layer-group"></i> Catálogo (30)
+                </button>
+                <button onclick="switchTab('shelf')" id="tab-btn-shelf" class="px-5 py-2.5 rounded-xl font-orbitron text-xs font-bold text-gray-400 hover:text-white transition-all duration-300 flex items-center gap-2 hover:bg-white/5 relative">
+                    <i class="fa-solid fa-bookmark text-pink-500"></i> Mi Estantería
+                    <span id="shelf-badge" class="ml-1 bg-pink-500 text-white text-[10px] px-1.5 py-0.2 rounded-full font-bold">0</span>
+                </button>
+            </nav>
+
+            <!-- User Profile Quick Bar -->
+            <div class="flex items-center gap-3">
+                <div onclick="toggleModal('modal-profile')" class="flex items-center gap-3 glass-panel px-3 py-1.5 rounded-xl border border-cyber-border hover:border-purple-500/50 cursor-pointer transition-all">
+                    <div class="w-8 h-8 rounded-lg bg-purple-600/30 border border-purple-400 flex items-center justify-center text-purple-300 font-bold" id="nav-avatar">
+                        <i class="fa-solid fa-user"></i>
+                    </div>
+                    <div class="hidden sm:block text-left">
+                        <div class="text-xs font-bold font-orbitron text-white" id="nav-username">usuario</div>
+                        <div class="text-[10px] text-cyan-400 font-semibold" id="nav-user-title">Nivel 99</div>
+                    </div>
+                    <i class="fa-solid fa-gear text-xs text-gray-400 ml-1"></i>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN CONTENT -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow w-full">
+
+        <!-- SECTION 1: QUIZ CONTAINER -->
+        <section id="section-quiz" class="space-y-8">
+            <!-- Hero Header -->
+            <div class="relative glass-panel rounded-3xl p-8 border border-cyber-border overflow-hidden">
+                <div class="absolute -right-10 -bottom-10 w-80 h-80 bg-purple-600/10 rounded-full blur-3xl pointer-events-none"></div>
+                <div class="relative z-10 max-w-2xl">
+                    <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 mb-4">
+                        <span class="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span> Algorithm v3.0 • 30 Juegos analizados
+                    </span>
+                    <h1 class="text-3xl sm:text-5xl font-orbitron font-black text-white leading-tight mb-4">
+                        DESCUBRE TU JUEGO IDEAL <br><span class="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-500">EN 9 PREGUNTAS</span>
+                    </h1>
+                    <p class="text-gray-300 text-sm sm:text-base font-medium leading-relaxed">
+                        Responde según tu estado de ánimo, tiempo disponible y estilo de juego. El algoritmo calculará la compatibilidad en tiempo real.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Quiz Card -->
+            <div class="glass-panel rounded-3xl p-6 sm:p-10 border border-cyber-border relative" id="quiz-card">
+                <!-- Progress Bar Top -->
+                <div class="mb-8">
+                    <div class="flex justify-between items-center text-xs font-orbitron font-bold text-gray-400 mb-2">
+                        <span id="quiz-step-text" class="text-cyan-400">PREGUNTA 1 DE 9</span>
+                        <span id="quiz-progress-percent">11% Completado</span>
+                    </div>
+                    <div class="w-full bg-cyber-bg h-2 rounded-full overflow-hidden border border-cyber-border">
+                        <div id="quiz-progress-bar" class="h-full bg-gradient-to-r from-cyan-400 to-purple-500 transition-all duration-500 w-[11%]"></div>
+                    </div>
+                </div>
+
+                <!-- Question Area -->
+                <div id="quiz-content-area" class="min-h-[280px] flex flex-col justify-between">
+                    <!-- Title & Subtitle -->
+                    <div class="mb-6">
+                        <h2 id="question-title" class="text-xl sm:text-2xl font-orbitron font-bold text-white mb-2">1. ¿De cuánto tiempo dispones para jugar hoy?</h2>
+                        <p id="question-subtitle" class="text-gray-400 text-sm">Selecciona la opción que mejor se adapte a tu jornada.</p>
+                    </div>
+
+                    <!-- Options Grid -->
+                    <div id="options-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+                        <!-- Options injected dynamically by JS -->
+                    </div>
+
+                    <!-- Navigation Controls -->
+                    <div class="flex justify-between items-center pt-4 border-t border-cyber-border/50">
+                        <button onclick="prevQuestion()" id="prev-btn" class="px-5 py-2.5 rounded-xl border border-cyber-border text-gray-400 text-xs font-orbitron font-bold hover:bg-white/5 transition-all disabled:opacity-30 disabled:pointer-events-none" disabled>
+                            <i class="fa-solid fa-arrow-left mr-2"></i> Anterior
+                        </button>
+                        <span class="text-xs text-gray-500 font-mono hidden sm:inline">Usa clics para seleccionar respuestas</span>
+                        <button onclick="resetQuiz()" class="px-4 py-2.5 text-xs text-gray-400 hover:text-white font-orbitron flex items-center gap-1 transition-all">
+                            <i class="fa-solid fa-rotate-right"></i> Reiniciar
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quiz Results (Hidden by default) -->
+            <div id="quiz-results" class="hidden space-y-8">
+                <div class="text-center max-w-2xl mx-auto space-y-3">
+                    <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-green-500/10 text-green-400 border border-green-500/30 text-xs font-orbitron font-bold">
+                        <i class="fa-solid fa-circle-check"></i> Análisis Completado
+                    </div>
+                    <h2 class="text-3xl sm:text-4xl font-orbitron font-black text-white">
+                        TUS 3 RECOMENDACIONES TOP
+                    </h2>
+                    <p class="text-gray-300 text-sm">
+                        Basado en tus selecciones, estos son los videojuegos que encajan perfectamente con tus preferencias.
+                    </p>
+                </div>
+
+                <!-- Top 3 Grid -->
+                <div id="top-3-container" class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <!-- Dynamic Top 3 Cards -->
+                </div>
+
+                <!-- Action Bar -->
+                <div class="flex flex-wrap justify-center gap-4 pt-4">
+                    <button onclick="resetQuiz()" class="px-6 py-3 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-orbitron font-bold text-xs shadow-lg transition-all flex items-center gap-2">
+                        <i class="fa-solid fa-rotate-right"></i> Repetir Test
+                    </button>
+                    <button onclick="switchTab('catalog')" class="px-6 py-3 rounded-xl glass-panel border border-cyber-border hover:border-cyan-400 text-white font-orbitron font-bold text-xs transition-all flex items-center gap-2">
+                        <i class="fa-solid fa-list-ul"></i> Explorar Los 30 Juegos
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 2: CATALOG CONTAINER -->
+        <section id="section-catalog" class="hidden space-y-6">
+            <!-- Catalog Header & Search -->
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 glass-panel p-6 rounded-3xl border border-cyber-border">
+                <div>
+                    <h2 class="text-2xl font-orbitron font-bold text-white">Catálogo de Videojuegos</h2>
+                    <p class="text-xs text-gray-400">Explora la base de datos completa de 30 títulos disponibles.</p>
+                </div>
+                
+                <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                    <!-- Search Bar -->
+                    <div class="relative flex-grow md:w-64">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+                        <input type="text" id="catalog-search" oninput="filterCatalog()" placeholder="Buscar juego..." class="w-full bg-cyber-bg border border-cyber-border rounded-xl pl-9 pr-4 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-cyan-400">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Category Filter Tabs -->
+            <div class="flex items-center gap-2 overflow-x-auto pb-2 custom-scrollbar" id="category-filters">
+                <button onclick="setCategoryFilter('all')" class="cat-btn px-4 py-2 rounded-xl text-xs font-orbitron font-bold whitespace-nowrap bg-cyan-500 text-black shadow-lg shadow-cyan-500/20" data-cat="all">Todos (30)</button>
+                <button onclick="setCategoryFilter('Acción & Battle Royale')" class="cat-btn px-4 py-2 rounded-xl text-xs font-orbitron font-bold whitespace-nowrap glass-panel border border-cyber-border text-gray-300 hover:text-white" data-cat="Acción & Battle Royale">Acción & Battle Royale</button>
+                <button onclick="setCategoryFilter('RPG & Aventura')" class="cat-btn px-4 py-2 rounded-xl text-xs font-orbitron font-bold whitespace-nowrap glass-panel border border-cyber-border text-gray-300 hover:text-white" data-cat="RPG & Aventura">RPG & Aventura</button>
+                <button onclick="setCategoryFilter('Casual & Puzzle')" class="cat-btn px-4 py-2 rounded-xl text-xs font-orbitron font-bold whitespace-nowrap glass-panel border border-cyber-border text-gray-300 hover:text-white" data-cat="Casual & Puzzle">Casual & Puzzle</button>
+                <button onclick="setCategoryFilter('Cooperativo & Multijugador')" class="cat-btn px-4 py-2 rounded-xl text-xs font-orbitron font-bold whitespace-nowrap glass-panel border border-cyber-border text-gray-300 hover:text-white" data-cat="Cooperativo & Multijugador">Cooperativo & Multijugador</button>
+                <button onclick="setCategoryFilter('Indies')" class="cat-btn px-4 py-2 rounded-xl text-xs font-orbitron font-bold whitespace-nowrap glass-panel border border-cyber-border text-gray-300 hover:text-white" data-cat="Indies">Indies</button>
+            </div>
+
+            <!-- Games Grid -->
+            <div id="catalog-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                <!-- Dynamic Games Cards -->
+            </div>
+        </section>
+
+        <!-- SECTION 3: SHELF (FAVORITES / DRAG AND DROP) -->
+        <section id="section-shelf" class="hidden space-y-6">
+            <div class="glass-panel p-6 rounded-3xl border border-cyber-border flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                    <h2 class="text-2xl font-orbitron font-bold text-white flex items-center gap-3">
+                        <i class="fa-solid fa-bookmark text-pink-500"></i> Mi Estantería Personal
+                    </h2>
+                    <p class="text-xs text-gray-400">Organiza tus videojuegos favoritos o los pendientes por jugar.</p>
+                </div>
+                <button onclick="clearShelf()" class="px-4 py-2 rounded-xl border border-red-500/30 text-red-400 hover:bg-red-500/10 text-xs font-orbitron font-bold transition-all flex items-center gap-2">
+                    <i class="fa-solid fa-trash-can"></i> Vaciar Estantería
+                </button>
+            </div>
+
+            <!-- Drag & Drop Dropzone -->
+            <div id="shelf-dropzone" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)" class="glass-panel rounded-3xl p-8 border-2 border-dashed border-cyber-border min-h-[300px] flex flex-col items-center justify-center text-center transition-all">
+                <div id="shelf-empty-state" class="space-y-3">
+                    <div class="w-16 h-16 rounded-2xl bg-purple-600/10 border border-purple-500/30 mx-auto flex items-center justify-center text-purple-400 text-2xl">
+                        <i class="fa-solid fa-hand-holding-hand"></i>
+                    </div>
+                    <h3 class="text-lg font-orbitron font-bold text-white">Tu estantería está vacía</h3>
+                    <p class="text-xs text-gray-400 max-w-md">Arrastra y suelta tarjetas de juegos desde el Catálogo o el Quiz para guardarlos en esta zona personalizada.</p>
+                </div>
+
+                <!-- Shelf Grid when populated -->
+                <div id="shelf-grid" class="w-full grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 hidden">
+                    <!-- Injected Shelf Items -->
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="glass-panel border-t border-cyber-border/50 py-6 mt-12">
+        <div class="max-w-7xl mx-auto px-4 text-center space-y-2">
+            <p class="text-xs font-orbitron text-gray-400">
+                GAMEMATCH AI © 2026 • RECOMENDADOR DE VIDEOJUEGOS INTERACTIVO
+            </p>
+            <p class="text-[10px] text-gray-600">
+                Diseño responsivo con Flexbox & CSS Grid • Animaciones CSS @keyframes • Integración API Unsplash
+            </p>
+        </div>
+    </footer>
+
+    <!-- MODAL 1: PERFIL & PERSONALIZACIÓN -->
+    <div id="modal-profile" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden items-center justify-center p-4">
+        <div class="glass-panel rounded-3xl border border-cyber-border p-6 sm:p-8 max-w-md w-full space-y-6 relative">
+            <button onclick="toggleModal('modal-profile')" class="absolute top-4 right-4 text-gray-400 hover:text-white">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+            <div class="space-y-1">
+                <h3 class="text-xl font-orbitron font-bold text-white">Perfil y Personalización</h3>
+                <p class="text-xs text-gray-400">Configura tus datos para personalizar la experiencia.</p>
+            </div>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-orbitron text-gray-300 mb-2">Nombre de Usuario</label>
+                    <input type="text" id="input-username" value="usuario" class="w-full bg-cyber-bg border border-cyber-border rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-cyan-400">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-orbitron text-gray-300 mb-2">Selecciona un Avatar</label>
+                    <div class="grid grid-cols-5 gap-2">
+                        <button onclick="selectAvatar('fa-user')" class="avatar-opt p-3 rounded-xl glass-panel border border-cyan-400 text-cyan-400 text-center"><i class="fa-solid fa-user"></i></button>
+                        <button onclick="selectAvatar('fa-robot')" class="avatar-opt p-3 rounded-xl glass-panel border border-cyber-border text-gray-400 text-center"><i class="fa-solid fa-robot"></i></button>
+                        <button onclick="selectAvatar('fa-ghost')" class="avatar-opt p-3 rounded-xl glass-panel border border-cyber-border text-gray-400 text-center"><i class="fa-solid fa-ghost"></i></button>
+                        <button onclick="selectAvatar('fa-dragon')" class="avatar-opt p-3 rounded-xl glass-panel border border-cyber-border text-gray-400 text-center"><i class="fa-solid fa-dragon"></i></button>
+                        <button onclick="selectAvatar('fa-headset')" class="avatar-opt p-3 rounded-xl glass-panel border border-cyber-border text-gray-400 text-center"><i class="fa-solid fa-headset"></i></button>
+                    </div>
+                </div>
+            </div>
+
+            <button onclick="saveProfile()" class="w-full py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 font-orbitron font-bold text-xs text-white shadow-lg shadow-cyan-500/20">
+                Guardar Cambios
+            </button>
+        </div>
+    </div>
+
+    <!-- MODAL 2: DETALLES DE JUEGO -->
+    <div id="modal-game-detail" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden items-center justify-center p-4">
+        <!-- Rendered dynamically -->
+    </div>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        // Database of EXACTLY 30 Popular Games
+        const GAMES_DATABASE = [
+            { id: 'minecraft', title: 'Minecraft', category: 'Casual & Puzzle', tags: ['casual', 'coop', 'relax', 'sandbox', 'largo'], desc: 'Construcción libre, exploración e imaginación sin límites en un mundo infinito de bloques.', image: 'images/minecraft.jpg', mode: 'Solo / Co-op', platform: 'PC / Consolas / Móvil', matchScore: 0 },
+            { id: 'zelda', title: 'Zelda: Tears of the Kingdom', category: 'RPG & Aventura', tags: ['historia', 'solo', 'exploracion', 'aventura', 'largo'], desc: 'Aventura épica de exploración libre en las tierras y cielos de Hyrule.', image: 'images/zelda.jpg', mode: 'Single Player', platform: 'Nintendo Switch', matchScore: 0 },
+            { id: 'mariokart', title: 'Mario Kart 8 Deluxe', category: 'Casual & Puzzle', tags: ['casual', 'competitivo', 'rapido', 'multijugador', 'party'], desc: 'Carreras frenéticas y divertidas con objetos locos para amigos y familia.', image: 'images/mariokart.jpg', mode: 'Multijugador', platform: 'Nintendo Switch', matchScore: 0 },
+            { id: 'stardew', title: 'Stardew Valley', category: 'Casual & Puzzle', tags: ['relax', 'casual', 'solo', 'coop', 'largo'], desc: 'Simulador de granja relajante, pesca, minería y vida rural pacífica.', image: 'images/stardew.jpg', mode: 'Solo / Co-op', platform: 'Todas las plataformas', matchScore: 0 },
+            { id: 'portal2', title: 'Portal 2', category: 'Indies', tags: ['puzles', 'solo', 'coop', 'historia', 'medio'], desc: 'Obra maestra de puzles con portales y un humor ácido inolvidable.', image: 'images/portal2.jpg', mode: 'Solo / Co-op 2P', platform: 'PC / Consolas', matchScore: 0 },
+            { id: 'warzone', title: 'COD Warzone', category: 'Acción & Battle Royale', tags: ['accion', 'competitivo', 'rapido', 'fps', 'coop'], desc: 'Battle royale táctico y frenético en primera persona de alto ritmo.', image: 'images/warzone.jpg', mode: 'Multijugador Online', platform: 'PC / PlayStation / Xbox', matchScore: 0 },
+            { id: 'fortnite', title: 'Fortnite', category: 'Acción & Battle Royale', tags: ['accion', 'competitivo', 'rapido', 'coop', 'party'], desc: 'Fenómeno de disparos y construcción con eventos globales en vivo.', image: 'images/fortnite.jpg', mode: 'Multijugador', platform: 'Todas las plataformas', matchScore: 0 },
+            { id: 'freefire', title: 'Free Fire', category: 'Acción & Battle Royale', tags: ['accion', 'competitivo', 'rapido', 'coop', 'movil'], desc: 'Partidas rápidas de survival en móviles llenas de adrenalina.', image: 'images/freefire.jpg', mode: 'Multijugador', platform: 'Móvil (iOS/Android)', matchScore: 0 },
+            { id: 'apex', title: 'Apex Legends', category: 'Acción & Battle Royale', tags: ['accion', 'competitivo', 'rapido', 'coop', 'fps'], desc: 'Hero shooter battle royale con habilidades de personajes dinámicas.', image: 'images/apex.jpg', mode: 'Escuadrones Online', platform: 'PC / Consolas', matchScore: 0 },
+            { id: 'darksouls', title: 'Dark Souls III', category: 'RPG & Aventura', tags: ['accion', 'desafio', 'solo', 'historia', 'largo'], desc: 'RPG de acción oscuro de alta dificultad y combate de precisión.', image: 'images/darksouls.jpg', mode: 'Single Player / Co-op', platform: 'PC / PlayStation / Xbox', matchScore: 0 },
+            { id: 'cuphead', title: 'Cuphead', category: 'Indies', tags: ['desafio', 'coop', 'pixel art', 'rapido', 'accion'], desc: 'Plataformas de acción estilo animación de los años 30 muy exigente.', image: 'images/cuphead.jpg', mode: 'Solo / Co-op Local', platform: 'PC / Consolas', matchScore: 0 },
+            { id: 'pokemon_za', title: 'Pokémon Leyendas Z-A', category: 'RPG & Aventura', tags: ['exploracion', 'solo', 'historia', 'casual', 'largo'], desc: 'Captura y entrenamiento de Pokémon en una renovada Ciudad Luminalia.', image: 'images/pokemon_za.jpg', mode: 'Single Player', platform: 'Nintendo Switch', matchScore: 0 },
+            { id: 'bloodborne', title: 'Bloodborne', category: 'RPG & Aventura', tags: ['accion', 'desafio', 'historia', 'solo', 'largo'], desc: 'Terror gótico y combates ágiles e implacables en Yharnam.', image: 'images/bloodborne.jpg', mode: 'Single Player', platform: 'PlayStation', matchScore: 0 },
+            { id: 'left4dead', title: 'Left 4 Dead 2', category: 'Cooperativo & Multijugador', tags: ['coop', 'accion', 'fps', 'rapido', 'competitivo'], desc: 'Cooperativo de hordas zombi de ritmo frenético inolvidable.', image: 'images/left4dead.jpg', mode: 'Co-op 4 Jugadores', platform: 'PC / Xbox', matchScore: 0 },
+            { id: 'horizon', title: 'Horizon Zero Dawn', category: 'RPG & Aventura', tags: ['historia', 'exploracion', 'solo', 'largo', 'aventura'], desc: 'Caza bestias mecánicas gigantes en un exuberante futuro postapocalíptico.', image: 'images/horizon.jpg', mode: 'Single Player', platform: 'PC / PlayStation', matchScore: 0 },
+            { id: 'clashroyale', title: 'Clash Royale', category: 'Casual & Puzzle', tags: ['competitivo', 'rapido', 'casual', 'movil', 'puzles'], desc: 'Estrategia en tiempo real rápida con cartas y torres.', image: 'images/clashroyale.jpg', mode: '1v1 / 2v2 Online', platform: 'Móvil (iOS/Android)', matchScore: 0 },
+            { id: 'blockblast', title: 'Block Blast!', category: 'Casual & Puzzle', tags: ['casual', 'puzles', 'relax', 'rapido', 'movil'], desc: 'Juego de puzles de encajar bloques adictivo y perfecto para pausas cortas.', image: 'images/blockblast.jpg', mode: 'Single Player', platform: 'Móvil (iOS/Android)', matchScore: 0 },
+            { id: 'ea_fc24', title: 'EA Sports FC 24', category: 'Cooperativo & Multijugador', tags: ['deportes', 'competitivo', 'party', 'multijugador', 'rapido'], desc: 'El simulador definitivo de fútbol mundial con licencias oficiales.', image: 'images/ea_fc24.jpg', mode: 'Multijugador', platform: 'PC / Consolas', matchScore: 0 },
+            { id: 'hollowknight', title: 'Hollow Knight', category: 'Indies', tags: ['exploracion', 'desafio', 'solo', 'historia', 'largo'], desc: 'Metroidvania precioso dibujado a mano en un reino de insectos en ruinas.', image: 'images/hollowknight.jpg', mode: 'Single Player', platform: 'Todas las plataformas', matchScore: 0 },
+            { id: 'amongus', title: 'Among Us', category: 'Cooperativo & Multijugador', tags: ['coop', 'party', 'casual', 'multijugador', 'rapido'], desc: 'Deducción social, engaño y trabajo en equipo en una nave espacial.', image: 'images/amongus.jpg', mode: 'Multijugador 4-15P', platform: 'Todas las plataformas', matchScore: 0 },
+            { id: 'tetris', title: 'Tetris Effect', category: 'Casual & Puzzle', tags: ['puzles', 'relax', 'casual', 'solo', 'rapido'], desc: 'Música, luces y sensaciones hipnóticas reinventando el clásico.', image: 'images/tetris.jpg', mode: 'Single Player / Vs', platform: 'PC / Consolas / VR', matchScore: 0 },
+            { id: 'eldenring', title: 'Elden Ring', category: 'RPG & Aventura', tags: ['exploracion', 'desafio', 'historia', 'largo', 'solo'], desc: 'Vasto mundo abierto fantástico lleno de enigmas y feroces jefes.', image: 'images/eldenring.jpg', mode: 'Single Player / Co-op', platform: 'PC / PlayStation / Xbox', matchScore: 0 },
+            { id: 'hades2', title: 'Hades II', category: 'Indies', tags: ['accion', 'desafio', 'solo', 'rapido', 'historia'], desc: 'Roguelike místico combatiendo a las fuerzas del Titán del Tiempo.', image: 'images/hades2.jpg', mode: 'Single Player', platform: 'PC / Consolas', matchScore: 0 },
+            { id: 'roblox', title: 'Roblox', category: 'Casual & Puzzle', tags: ['casual', 'party', 'multijugador', 'sandbox', 'coop'], desc: 'Universo virtual de experiencias infinitas creadas por la comunidad.', image: 'images/roblox.jpg', mode: 'Multijugador Online', platform: 'Todas las plataformas', matchScore: 0 },
+            { id: 'rocketleague', title: 'Rocket League', category: 'Cooperativo & Multijugador', tags: ['deportes', 'competitivo', 'rapido', 'multijugador', 'coop'], desc: 'Fútbol de alta velocidad conducido por coches con propulsores de cohete.', image: 'images/rocketleague.jpg', mode: 'Multijugador', platform: 'PC / Consolas', matchScore: 0 },
+            { id: 'fallguys', title: 'Fall Guys', category: 'Casual & Puzzle', tags: ['casual', 'party', 'competitivo', 'rapido', 'multijugador'], desc: 'Party game multitudinario con divertidas pruebas de obstáculos.', image: 'images/fallguys.jpg', mode: 'Battle Royale Party', platform: 'Todas las plataformas', matchScore: 0 },
+            { id: 'valorant', title: 'Valorant', category: 'Acción & Battle Royale', tags: ['accion', 'competitivo', 'fps', 'coop', 'rapido'], desc: 'Tactical shooter 5v5 con habilidades precisas de agentes.', image: 'images/valorant.jpg', mode: 'Competitivo Online', platform: 'PC / Consolas', matchScore: 0 },
+            { id: 'genshin', title: 'Genshin Impact', category: 'RPG & Aventura', tags: ['exploracion', 'historia', 'largo', 'casual', 'solo'], desc: 'Mundo abierto fantástico con combate elemental y decenas de héroes.', image: 'images/genshin.jpg', mode: 'Solo / Co-op', platform: 'Todas las plataformas', matchScore: 0 },
+            { id: 'terraria', title: 'Terraria', category: 'Indies', tags: ['sandbox', 'coop', 'exploracion', 'largo', 'puzles'], desc: 'Aventura sandbox 2D de construcción, exploración y combate masivo.', image: 'images/terraria.jpg', mode: 'Solo / Co-op', platform: 'Todas las plataformas', matchScore: 0 },
+            { id: 'gtav', title: 'GTA V', category: 'Acción & Battle Royale', tags: ['accion', 'exploracion', 'multijugador', 'historia', 'largo'], desc: 'Mundo abierto icónico de crimen, libertad y acción sin límites.', image: 'images/gtav.jpg', mode: 'Single Player / Online', platform: 'PC / Consolas', matchScore: 0 }
+        ];
+
+        // 9 QUIZ QUESTIONS
+        const QUIZ_QUESTIONS = [
+            {
+                title: "1. ¿De cuánto tiempo dispones para jugar hoy?",
+                subtitle: "Selecciona el ritmo de tu sesión actual.",
+                options: [
+                    { label: "Sesión exprés (15 - 30 mins)", tag: "rapido" },
+                    { label: "Un par de horas equilibradas (1 - 2 hs)", tag: "medio" },
+                    { label: "Maratón Gamer (MÁS de 3 hs)", tag: "largo" },
+                    { label: "Solo me conecto a ver qué sale", tag: "casual" }
+                ]
+            },
+            {
+                title: "2. ¿Prefieres jugar solo o con compañía?",
+                subtitle: "Define la interacción social que buscas.",
+                options: [
+                    { label: "En solitario (Inmersión total sin interrupciones)", tag: "solo" },
+                    { label: "Cooperativo (Con amigos contra el juego)", tag: "coop" },
+                    { label: "Competitivo Multijugador (Enfrentamientos online)", tag: "competitivo" },
+                    { label: "Para jugar de fiesta / Party Game", tag: "party" }
+                ]
+            },
+            {
+                title: "3. ¿Qué tipo de experiencia principal te apetece más?",
+                subtitle: "Elige la mecánica central.",
+                options: [
+                    { label: "Explorar mundos abiertos enormes", tag: "exploracion" },
+                    { label: "Resolver puzles y pensar rápido", tag: "puzles" },
+                    { label: "Acción desenfrenada y disparos", tag: "accion" },
+                    { label: "Relajarme construyendo o administrando", tag: "relax" }
+                ]
+            },
+            {
+                title: "4. ¿En qué plataforma vas a jugar?",
+                subtitle: "Selecciona tu dispositivo activo.",
+                options: [
+                    { label: "PC Master Race", tag: "pc" },
+                    { label: "Consolas (PlayStation / Xbox / Switch)", tag: "consolas" },
+                    { label: "Móvil / Tablet", tag: "movil" },
+                    { label: "Me da igual / Tengo acceso a todo", tag: "todas" }
+                ]
+            },
+            {
+                title: "5. ¿Qué nivel de dificultad / desafío buscas hoy?",
+                subtitle: "Mide cuánto quieres poner a prueba tus habilidades.",
+                options: [
+                    { label: "Cero estrés, quiero relajarme sin morir", tag: "casual" },
+                    { label: "Desafío moderado pero justo", tag: "medio" },
+                    { label: "Exigencia extrema tipo Dark Souls", tag: "desafio" },
+                    { label: "Quiero ganar partidas competitivas", tag: "competitivo" }
+                ]
+            },
+            {
+                title: "6. ¿Qué importancia le das a la Historia / Narrativa?",
+                subtitle: "Tu interés en tramas de juego.",
+                options: [
+                    { label: "Fundamental, quiero una trama inolvidable", tag: "historia" },
+                    { label: "Aceptable si no interrumpe la jugabilidad", tag: "aventura" },
+                    { label: "Irrelevante, quiero ir directo a jugar", tag: "rapido" },
+                    { label: "Prefiero crear mi propia historia libre", tag: "sandbox" }
+                ]
+            },
+            {
+                title: "7. ¿Qué perspectiva o estilo visual te atrae más?",
+                subtitle: "Aspecto estético del juego.",
+                options: [
+                    { label: "Primera persona / FPS", tag: "fps" },
+                    { label: "Pixel Art / Estilo Retro Ilustrado", tag: "pixel art" },
+                    { label: "Gráficos 3D Realistas o Deslumbrantes", tag: "exploracion" },
+                    { label: "Diseño Colorido y Estilizado", tag: "party" }
+                ]
+            },
+            {
+                title: "8. ¿Qué sensación esperas al cerrar el juego?",
+                subtitle: "Objetivo emocional.",
+                options: [
+                    { label: "Tranquilidad y cero tensión", tag: "relax" },
+                    { label: "Adrenalina y satisfacción de victoria", tag: "competitivo" },
+                    { label: "Sensación de haber descubierto cosas nuevas", tag: "exploracion" },
+                    { label: "Haber compartido risas con gente", tag: "party" }
+                ]
+            },
+            {
+                title: "9. Si fueras a elegir una sola etiqueta extra...",
+                subtitle: "Filtro final de afinidad.",
+                options: [
+                    { label: "Deportes o Carreras", tag: "deportes" },
+                    { label: "Shooter / Armas de fuego", tag: "fps" },
+                    { label: "Joyas Indie con identidad propia", tag: "puzles" },
+                    { label: "Construcción y Creatividad", tag: "sandbox" }
+                ]
+            }
+        ];
+
+        // State Management
+        let currentStep = 0;
+        let userAnswers = [];
+        let userShelf = JSON.parse(localStorage.getItem('gamematch_shelf')) || [];
+        let currentCategoryFilter = 'all';
+        let selectedAvatar = 'fa-user';
+
+        // INITIALIZATION
+        window.addEventListener('DOMContentLoaded', () => {
+            renderQuestion();
+            renderCatalog();
+            updateShelfUI();
+        });
+
+        // TAB NAVIGATION
+        function switchTab(tab) {
+            document.getElementById('section-quiz').classList.add('hidden');
+            document.getElementById('section-catalog').classList.add('hidden');
+            document.getElementById('section-shelf').classList.add('hidden');
+
+            document.getElementById('tab-btn-quiz').className = "px-5 py-2.5 rounded-xl font-orbitron text-xs font-bold text-gray-400 hover:text-white transition-all duration-300 flex items-center gap-2 hover:bg-white/5";
+            document.getElementById('tab-btn-catalog').className = "px-5 py-2.5 rounded-xl font-orbitron text-xs font-bold text-gray-400 hover:text-white transition-all duration-300 flex items-center gap-2 hover:bg-white/5";
+            document.getElementById('tab-btn-shelf').className = "px-5 py-2.5 rounded-xl font-orbitron text-xs font-bold text-gray-400 hover:text-white transition-all duration-300 flex items-center gap-2 hover:bg-white/5 relative";
+
+            if (tab === 'quiz') {
+                document.getElementById('section-quiz').classList.remove('hidden');
+                document.getElementById('tab-btn-quiz').className = "px-5 py-2.5 rounded-xl font-orbitron text-xs font-bold transition-all duration-300 flex items-center gap-2 bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/25";
+            } else if (tab === 'catalog') {
+                document.getElementById('section-catalog').classList.remove('hidden');
+                document.getElementById('tab-btn-catalog').className = "px-5 py-2.5 rounded-xl font-orbitron text-xs font-bold transition-all duration-300 flex items-center gap-2 bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/25";
+            } else if (tab === 'shelf') {
+                document.getElementById('section-shelf').classList.remove('hidden');
+                document.getElementById('tab-btn-shelf').className = "px-5 py-2.5 rounded-xl font-orbitron text-xs font-bold transition-all duration-300 flex items-center gap-2 bg-gradient-to-r from-pink-500 to-purple-600 text-white shadow-lg shadow-pink-500/25 relative";
+            }
+        }
+
+        // QUIZ SYSTEM LOGIC
+        function renderQuestion() {
+            const q = QUIZ_QUESTIONS[currentStep];
+            const total = QUIZ_QUESTIONS.length;
+            const progress = Math.round(((currentStep + 1) / total) * 100);
+
+            document.getElementById('quiz-step-text').textContent = `PREGUNTA ${currentStep + 1} DE ${total}`;
+            document.getElementById('quiz-progress-percent').textContent = `${progress}% Completado`;
+            document.getElementById('quiz-progress-bar').style.width = `${progress}%`;
+
+            document.getElementById('question-title').textContent = q.title;
+            document.getElementById('question-subtitle').textContent = q.subtitle;
+
+            const grid = document.getElementById('options-grid');
+            grid.innerHTML = '';
+
+            q.options.forEach((opt, idx) => {
+                const btn = document.createElement('button');
+                btn.className = "p-5 rounded-2xl glass-panel border border-cyber-border hover:border-cyan-400 hover:bg-cyan-500/10 text-left transition-all duration-200 flex items-center justify-between group";
+                btn.onclick = () => selectOption(opt.tag);
+                btn.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <span class="w-7 h-7 rounded-lg bg-cyber-bg border border-cyber-border text-xs font-orbitron font-bold text-cyan-400 flex items-center justify-center group-hover:border-cyan-400 group-hover:bg-cyan-400 group-hover:text-black transition-all">
+                            ${idx + 1}
+                        </span>
+                        <span class="text-sm font-bold text-gray-200 group-hover:text-white">${opt.label}</span>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-xs text-gray-500 group-hover:text-cyan-400 group-hover:translate-x-1 transition-all"></i>
+                `;
+                grid.appendChild(btn);
+            });
+
+            document.getElementById('prev-btn').disabled = currentStep === 0;
+        }
+
+        function selectOption(tag) {
+            userAnswers[currentStep] = tag;
+            if (currentStep < QUIZ_QUESTIONS.length - 1) {
+                currentStep++;
+                renderQuestion();
+            } else {
+                calculateResults();
+            }
+        }
+
+        function prevQuestion() {
+            if (currentStep > 0) {
+                currentStep--;
+                renderQuestion();
+            }
+        }
+
+        function resetQuiz() {
+            currentStep = 0;
+            userAnswers = [];
+            document.getElementById('quiz-card').classList.remove('hidden');
+            document.getElementById('quiz-results').classList.add('hidden');
+            renderQuestion();
+        }
+
+        function calculateResults() {
+            // Calculate Match Scores
+            GAMES_DATABASE.forEach(game => {
+                let score = 0;
+                userAnswers.forEach(answerTag => {
+                    if (game.tags.includes(answerTag)) score += 20;
+                });
+                // Slight base bonus based on popularity
+                game.matchScore = Math.min(score + Math.floor(Math.random() * 15) + 30, 99);
+            });
+
+            // Sort by Match Score Descending
+            const sortedGames = [...GAMES_DATABASE].sort((a, b) => b.matchScore - a.matchScore);
+            const top3 = sortedGames.slice(0, 3);
+
+            // Render Top 3 Cards
+            const container = document.getElementById('top-3-container');
+            container.innerHTML = '';
+
+            const matchTitles = ["Match 1", "Match 2", "Match 3"];
+            const matchBadges = [
+                "from-amber-400 to-yellow-600 text-black shadow-yellow-500/30",
+                "from-slate-300 to-slate-500 text-black shadow-slate-400/30",
+                "from-amber-700 to-amber-900 text-white shadow-amber-800/30"
+            ];
+
+            top3.forEach((game, idx) => {
+                const card = document.createElement('div');
+                card.className = `glass-panel rounded-3xl overflow-hidden border border-cyber-border hover:border-cyan-400/50 transition-all duration-300 flex flex-col justify-between relative group ${idx === 0 ? 'neon-border-cyan md:-translate-y-2' : ''}`;
+                
+                card.innerHTML = `
+                    <div class="relative h-48 overflow-hidden">
+                        <img src="${game.image}" alt="${game.title}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                        <div class="absolute inset-0 bg-gradient-to-t from-cyber-card via-transparent to-black/40"></div>
+                        
+                        <!-- Top Match Rank Badge -->
+                        <div class="absolute top-3 left-3 px-3 py-1 rounded-full text-xs font-orbitron font-extrabold bg-gradient-to-r ${matchBadges[idx]} shadow-md">
+                            ${matchTitles[idx]}
+                        </div>
+
+                        <div class="absolute bottom-3 left-3 right-3">
+                            <span class="text-[10px] font-orbitron uppercase tracking-widest text-cyan-400">${game.category}</span>
+                            <h3 class="text-xl font-orbitron font-bold text-white leading-tight">${game.title}</h3>
+                        </div>
+                    </div>
+
+                    <div class="p-5 space-y-4 flex-grow flex flex-col justify-between">
+                        <p class="text-xs text-gray-300 line-clamp-3">${game.desc}</p>
+                        
+                        <div class="space-y-2">
+                            <div class="flex items-center text-[11px] text-gray-400 gap-2">
+                                <i class="fa-solid fa-gamepad text-cyan-400"></i>
+                                <span>${game.platform}</span>
+                            </div>
+                            <div class="flex items-center text-[11px] text-gray-400 gap-2">
+                                <i class="fa-solid fa-users text-purple-400"></i>
+                                <span>${game.mode}</span>
+                            </div>
+                        </div>
+
+                        <div class="pt-3 border-t border-cyber-border/50 flex gap-2">
+                            <button onclick="toggleShelf('${game.id}')" class="flex-grow py-2.5 rounded-xl ${isInShelf(game.id) ? 'bg-pink-600/30 text-pink-300 border border-pink-500' : 'bg-cyber-bg border border-cyber-border text-gray-300 hover:text-white'} text-xs font-orbitron font-bold transition-all flex items-center justify-center gap-2">
+                                <i class="fa-solid fa-bookmark"></i> ${isInShelf(game.id) ? 'En Estantería' : 'Guardar'}
+                            </button>
+                            <button onclick="openGameDetail('${game.id}')" class="px-3 py-2.5 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500 hover:text-black text-xs transition-all">
+                                <i class="fa-solid fa-info"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+
+            document.getElementById('quiz-card').classList.add('hidden');
+            document.getElementById('quiz-results').classList.remove('hidden');
+        }
+
+        // CATALOG SYSTEM LOGIC
+        function renderCatalog() {
+            const grid = document.getElementById('catalog-grid');
+            grid.innerHTML = '';
+
+            const searchTerm = document.getElementById('catalog-search').value.toLowerCase();
+
+            const filtered = GAMES_DATABASE.filter(game => {
+                const matchesCat = currentCategoryFilter === 'all' || game.category === currentCategoryFilter;
+                const matchesSearch = game.title.toLowerCase().includes(searchTerm) || game.desc.toLowerCase().includes(searchTerm);
+                return matchesCat && matchesSearch;
+            });
+
+            if (filtered.length === 0) {
+                grid.innerHTML = `
+                    <div class="col-span-full py-12 text-center text-gray-500 font-orbitron text-sm">
+                        No se encontraron juegos que coincidan con la búsqueda.
+                    </div>
+                `;
+                return;
+            }
+
+            filtered.forEach(game => {
+                const card = document.createElement('div');
+                card.className = "glass-panel rounded-2xl overflow-hidden border border-cyber-border hover:border-cyan-400/50 transition-all duration-300 flex flex-col justify-between group";
+                card.draggable = true;
+                card.ondragstart = (e) => e.dataTransfer.setData('text/plain', game.id);
+
+                card.innerHTML = `
+                    <div class="relative h-40 overflow-hidden">
+                        <img src="${game.image}" alt="${game.title}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                        <div class="absolute inset-0 bg-gradient-to-t from-cyber-card via-transparent to-black/30"></div>
+                        <div class="absolute top-2 right-2 px-2 py-0.5 rounded bg-black/60 backdrop-blur text-[10px] text-gray-300 font-mono">
+                            ${game.category}
+                        </div>
+                    </div>
+
+                    <div class="p-4 space-y-3 flex-grow flex flex-col justify-between">
+                        <div>
+                            <h3 class="font-orbitron font-bold text-white text-base leading-snug">${game.title}</h3>
+                            <p class="text-xs text-gray-400 line-clamp-2 mt-1">${game.desc}</p>
+                        </div>
+
+                        <div class="pt-2 border-t border-cyber-border/40 flex items-center justify-between">
+                            <span class="text-[10px] text-cyan-400 font-orbitron">${game.platform}</span>
+                            <div class="flex gap-1">
+                                <button onclick="toggleShelf('${game.id}')" class="p-2 rounded-lg ${isInShelf(game.id) ? 'text-pink-400 bg-pink-500/10' : 'text-gray-400 hover:text-white'} transition-all text-xs" title="Guardar en estantería">
+                                    <i class="fa-solid fa-bookmark"></i>
+                                </button>
+                                <button onclick="openGameDetail('${game.id}')" class="p-2 rounded-lg text-cyan-400 hover:bg-cyan-500/10 transition-all text-xs" title="Detalles">
+                                    <i class="fa-solid fa-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function filterCatalog() {
+            renderCatalog();
+        }
+
+        function setCategoryFilter(cat) {
+            currentCategoryFilter = cat;
+            document.querySelectorAll('.cat-btn').forEach(btn => {
+                if (btn.dataset.cat === cat) {
+                    btn.className = "cat-btn px-4 py-2 rounded-xl text-xs font-orbitron font-bold whitespace-nowrap bg-cyan-500 text-black shadow-lg shadow-cyan-500/20";
+                } else {
+                    btn.className = "cat-btn px-4 py-2 rounded-xl text-xs font-orbitron font-bold whitespace-nowrap glass-panel border border-cyber-border text-gray-300 hover:text-white";
+                }
+            });
+            renderCatalog();
+        }
+
+        // SHELF & DRAG AND DROP
+        function isInShelf(gameId) {
+            return userShelf.includes(gameId);
+        }
+
+        function toggleShelf(gameId) {
+            if (isInShelf(gameId)) {
+                userShelf = userShelf.filter(id => id !== gameId);
+            } else {
+                userShelf.push(gameId);
+            }
+            localStorage.setItem('gamematch_shelf', JSON.stringify(userShelf));
+            updateShelfUI();
+            renderCatalog();
+            if (!document.getElementById('quiz-results').classList.contains('hidden')) {
+                calculateResults();
+            }
+        }
+
+        function clearShelf() {
+            userShelf = [];
+            localStorage.setItem('gamematch_shelf', JSON.stringify(userShelf));
+            updateShelfUI();
+            renderCatalog();
+        }
+
+        function updateShelfUI() {
+            document.getElementById('shelf-badge').textContent = userShelf.length;
+            const emptyState = document.getElementById('shelf-empty-state');
+            const grid = document.getElementById('shelf-grid');
+
+            if (userShelf.length === 0) {
+                emptyState.classList.remove('hidden');
+                grid.classList.add('hidden');
+            } else {
+                emptyState.classList.add('hidden');
+                grid.classList.remove('hidden');
+                grid.innerHTML = '';
+
+                userShelf.forEach(gameId => {
+                    const game = GAMES_DATABASE.find(g => g.id === gameId);
+                    if (!game) return;
+
+                    const item = document.createElement('div');
+                    item.className = "glass-panel rounded-2xl p-4 border border-cyber-border flex items-center justify-between gap-3";
+                    item.innerHTML = `
+                        <div class="flex items-center gap-3 overflow-hidden">
+                            <img src="${game.image}" class="w-12 h-12 rounded-xl object-cover flex-shrink-0">
+                            <div class="truncate">
+                                <h4 class="font-orbitron font-bold text-xs text-white truncate">${game.title}</h4>
+                                <span class="text-[10px] text-cyan-400 block">${game.category}</span>
+                            </div>
+                        </div>
+                        <button onclick="toggleShelf('${game.id}')" class="text-gray-400 hover:text-red-400 p-2 text-xs">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    `;
+                    grid.appendChild(item);
+                });
+            }
+        }
+
+        // DRAG AND DROP HANDLERS
+        function handleDragOver(e) {
+            e.preventDefault();
+            document.getElementById('shelf-dropzone').classList.add('drag-over');
+        }
+
+        function handleDragLeave(e) {
+            document.getElementById('shelf-dropzone').classList.remove('drag-over');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            document.getElementById('shelf-dropzone').classList.remove('drag-over');
+            const gameId = e.dataTransfer.getData('text/plain');
+            if (gameId && !isInShelf(gameId)) {
+                toggleShelf(gameId);
+            }
+        }
+
+        // MODALS CONTROL
+        function toggleModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal.classList.contains('hidden')) {
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            } else {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }
+        }
+
+        function openGameDetail(gameId) {
+            const game = GAMES_DATABASE.find(g => g.id === gameId);
+            if (!game) return;
+
+            const modal = document.getElementById('modal-game-detail');
+            modal.innerHTML = `
+                <div class="glass-panel rounded-3xl border border-cyber-border max-w-lg w-full overflow-hidden relative space-y-4 p-6">
+                    <button onclick="toggleModal('modal-game-detail')" class="absolute top-4 right-4 z-10 w-8 h-8 rounded-full bg-black/60 text-white flex items-center justify-center">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                    
+                    <div class="h-48 rounded-2xl overflow-hidden relative -mx-6 -mt-6 mb-4">
+                        <img src="${game.image}" class="w-full h-full object-cover">
+                        <div class="absolute inset-0 bg-gradient-to-t from-cyber-card via-transparent to-black/40"></div>
+                        <div class="absolute bottom-3 left-4">
+                            <span class="text-[10px] font-orbitron uppercase text-cyan-400">${game.category}</span>
+                            <h3 class="text-2xl font-orbitron font-bold text-white">${game.title}</h3>
+                        </div>
+                    </div>
+
+                    <p class="text-xs text-gray-300 leading-relaxed">${game.desc}</p>
+
+                    <div class="grid grid-cols-2 gap-3 pt-2">
+                        <div class="p-3 rounded-xl bg-cyber-bg border border-cyber-border">
+                            <span class="text-[10px] text-gray-400 font-orbitron block">PLATAFORMAS</span>
+                            <span class="text-xs text-white font-semibold">${game.platform}</span>
+                        </div>
+                        <div class="p-3 rounded-xl bg-cyber-bg border border-cyber-border">
+                            <span class="text-[10px] text-gray-400 font-orbitron block">MODO DE JUEGO</span>
+                            <span class="text-xs text-white font-semibold">${game.mode}</span>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-wrap gap-1.5 pt-2">
+                        ${game.tags.map(t => `<span class="px-2.5 py-1 rounded-md bg-purple-500/10 border border-purple-500/30 text-purple-300 text-[10px] font-mono">#${t}</span>`).join('')}
+                    </div>
+
+                    <button onclick="toggleShelf('${game.id}'); toggleModal('modal-game-detail');" class="w-full py-3 rounded-xl ${isInShelf(game.id) ? 'bg-pink-600 text-white' : 'bg-cyan-500 text-black'} font-orbitron font-bold text-xs mt-2">
+                        ${isInShelf(game.id) ? 'Quitar de Estantería' : 'Agregar a Estantería'}
+                    </button>
+                </div>
+            `;
+            toggleModal('modal-game-detail');
+        }
+
+        // PROFILE CUSTOMIZATION
+        function selectAvatar(iconClass) {
+            selectedAvatar = iconClass;
+            document.querySelectorAll('.avatar-opt').forEach(btn => {
+                if (btn.innerHTML.includes(iconClass)) {
+                    btn.className = "avatar-opt p-3 rounded-xl glass-panel border border-cyan-400 text-cyan-400 text-center";
+                } else {
+                    btn.className = "avatar-opt p-3 rounded-xl glass-panel border border-cyber-border text-gray-400 text-center";
+                }
+            });
+        }
+
+        function saveProfile() {
+            const username = document.getElementById('input-username').value.trim() || 'usuario';
+            document.getElementById('nav-username').textContent = username;
+            document.getElementById('nav-avatar').innerHTML = `<i class="fa-solid ${selectedAvatar}"></i>`;
+            toggleModal('modal-profile');
+        }
+    </script>
+</body>
+</html>
